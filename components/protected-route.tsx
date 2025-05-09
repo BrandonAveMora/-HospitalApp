@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
@@ -12,24 +12,21 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { data: session, status } = useSession()
+  const { user, isLoading } = useAuth()
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isRouteLoading, setIsRouteLoading] = useState(true)
 
   useEffect(() => {
-    if (status === "loading") {
-      return
+    if (!isLoading) {
+      if (!user) {
+        router.push("/login")
+        return
+      }
+      setIsRouteLoading(false)
     }
+  }, [user, isLoading, router])
 
-    if (!session) {
-      router.push("/login")
-      return
-    }
-
-    setIsLoading(false)
-  }, [session, status, router])
-
-  if (isLoading || status === "loading") {
+  if (isRouteLoading || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
