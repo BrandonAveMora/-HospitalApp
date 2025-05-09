@@ -33,5 +33,5 @@ export function formatDate(dateString: string): string {
     month: "long",
     day: "numeric",
   }
-  return new Date(dateString).toLocaleDateString(undefined, options)
+  return new Date(dateString).toLocaleDateString("es-ES", options)
 }

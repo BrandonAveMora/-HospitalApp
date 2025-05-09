@@ -7,10 +7,10 @@ import { medicalPackages, getSpecialtyById } from "@/lib/data"
 export default function MedicalPackages() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <h1 className="text-3xl font-bold mb-4 text-center">Medical Packages</h1>
+      <h1 className="text-3xl font-bold mb-4 text-center">Paquetes Médicos</h1>
       <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
-        Choose from our comprehensive range of medical packages designed to provide you with the best healthcare
-        services.
+        Elija entre nuestra amplia gama de paquetes médicos diseñados para brindarle los mejores servicios de atención
+        médica.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -32,7 +32,7 @@ export default function MedicalPackages() {
               </CardContent>
               <CardFooter>
                 <Link href={`/book-appointment?package=${pkg.id}`} className="w-full">
-                  <Button className="w-full">Book this Package</Button>
+                  <Button className="w-full">Reservar este Paquete</Button>
                 </Link>
               </CardFooter>
             </Card>
