@@ -35,3 +35,13 @@ export function formatDate(dateString: string): string {
   }
   return new Date(dateString).toLocaleDateString("es-ES", options)
 }
+
+// GitHub integration helpers
+export function getGitHubRepoUrl(): string {
+  return "https://github.com/tu-usuario/hospital-citas-app"
+}
+
+export function getGitHubIssueUrl(title = ""): string {
+  const encodedTitle = encodeURIComponent(title)
+  return `${getGitHubRepoUrl()}/issues/new?title=${encodedTitle}`
+}

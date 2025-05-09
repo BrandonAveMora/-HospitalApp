@@ -1,30 +1,125 @@
-# Hospital appointment app
+# Hospital Ciudad General - Sistema de Citas
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+Este proyecto es una aplicación web para la gestión de citas médicas del Hospital Ciudad General. Permite a los pacientes registrarse, iniciar sesión, reservar citas con diferentes especialistas, ver sus citas programadas y explorar paquetes médicos.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/brandonavemoras-projects/v0-hospital-appointment-app)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/Xk6jBhjP4C2)
+## Características
 
-## Overview
+- **Autenticación de usuarios**: Registro e inicio de sesión de pacientes
+- **Reserva de citas**: Selección de especialidad, médico, fecha y hora
+- **Gestión de citas**: Visualización y cancelación de citas programadas
+- **Paquetes médicos**: Exploración de diferentes paquetes de servicios médicos
+- **Diseño responsivo**: Interfaz adaptada a dispositivos móviles y de escritorio
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Tecnologías utilizadas
 
-## Deployment
+- **Next.js**: Framework de React para el desarrollo de aplicaciones web
+- **React**: Biblioteca JavaScript para construir interfaces de usuario
+- **TypeScript**: Superset de JavaScript con tipado estático
+- **Tailwind CSS**: Framework CSS para diseño rápido y responsivo
+- **Shadcn/UI**: Componentes de UI reutilizables
+- **LocalStorage**: Para almacenamiento de datos en el navegador
 
-Your project is live at:
+## Instalación
 
-**[https://vercel.com/brandonavemoras-projects/v0-hospital-appointment-app](https://vercel.com/brandonavemoras-projects/v0-hospital-appointment-app)**
+1. Clona este repositorio:
+   \`\`\`bash
+   git clone https://github.com/tu-usuario/hospital-citas-app.git
+   cd hospital-citas-app
+   \`\`\`
 
-## Build your app
+2. Instala las dependencias:
+   \`\`\`bash
+   npm install
+   \`\`\`
 
-Continue building your app on:
+3. Inicia el servidor de desarrollo:
+   \`\`\`bash
+   npm run dev
+   \`\`\`
 
-**[https://v0.dev/chat/projects/Xk6jBhjP4C2](https://v0.dev/chat/projects/Xk6jBhjP4C2)**
+4. Abre [http://localhost:3000](http://localhost:3000) en tu navegador para ver la aplicación.
 
-## How It Works
+## Estructura del proyecto
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+\`\`\`
+hospital-citas-app/
+├── app/                    # Rutas y páginas de la aplicación
+│   ├── book-appointment/   # Página de reserva de citas
+│   ├── login/              # Página de inicio de sesión
+│   ├── medical-packages/   # Página de paquetes médicos
+│   ├── my-appointments/    # Página de citas del usuario
+│   ├── register/           # Página de registro
+│   ├── layout.tsx          # Layout principal
+│   └── page.tsx            # Página de inicio
+├── components/             # Componentes reutilizables
+├── contexts/               # Contextos de React
+├── lib/                    # Utilidades y datos
+├── public/                 # Archivos estáticos
+└── ...
+\`\`\`
+
+## Uso
+
+1. Regístrate como nuevo usuario o inicia sesión
+2. Explora las diferentes especialidades y paquetes médicos
+3. Reserva una cita seleccionando especialidad, médico, fecha y hora
+4. Gestiona tus citas desde la sección "Mis Citas"
+
+## Desarrollo
+
+Este proyecto utiliza:
+
+- **TypeScript** para tipado estático
+- **ESLint** para linting
+- **Prettier** para formateo de código
+- **Tailwind CSS** para estilos
+
+## Despliegue
+
+La aplicación puede ser desplegada en Vercel con un simple comando:
+
+\`\`\`bash
+npm run build
+\`\`\`
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+\`\`\`
+
+```gitignore file=".gitignore"
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
