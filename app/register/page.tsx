@@ -40,12 +40,12 @@ export default function Register() {
     }
 
     try {
-      const success = await register(formData.name, formData.email, formData.password)
+      const { success, error } = await register(formData.name, formData.email, formData.password)
 
       if (!success) {
         toast({
           title: "Error de Registro",
-          description: "Este correo electrónico ya está registrado. Por favor, use otro.",
+          description: error || "Este correo electrónico ya está registrado. Por favor, use otro.",
           variant: "destructive",
         })
         setIsLoading(false)
@@ -60,6 +60,7 @@ export default function Register() {
 
       setTimeout(() => {
         router.push("/")
+        router.refresh()
       }, 1000)
     } catch (error) {
       console.error("Registration error:", error)
