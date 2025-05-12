@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, User, Stethoscope, X } from "lucide-react"
+import { Calendar, Clock, User, Stethoscope, X, Package } from "lucide-react"
 import { formatDate } from "@/lib/utils"
-import { getSpecialtyById, getDoctorById, getTimeSlotById } from "@/lib/data"
+import { getSpecialtyById, getDoctorById, getTimeSlotById, getPackageById } from "@/lib/data"
+import { getUserAppointments, deleteAppointment } from "@/lib/appointment-service"
+import { Badge } from "@/components/ui/badge"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,31 +28,36 @@ export default function MyAppointments() {
   const router = useRouter()
   const { user } = useAuth()
   const [appointments, setAppointments] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Load appointments from localStorage
-      const savedAppointments = localStorage.getItem("appointments")
-      const allAppointments = savedAppointments ? JSON.parse(savedAppointments) : []
-
-      // Filter appointments for the current user
+    async function loadAppointments() {
       if (user?.id) {
-        setAppointments(allAppointments.filter((appointment: any) => appointment.userId === user.id))
+        try {
+          const userAppointments = await getUserAppointments(user.id)
+          setAppointments(userAppointments)
+        } catch (error) {
+          console.error("Error al cargar citas:", error)
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar sus citas. Por favor, inténtelo de nuevo.",
+            variant: "destructive",
+          })
+        } finally {
+          setIsLoading(false)
+        }
       } else {
-        setAppointments([])
+        setIsLoading(false)
       }
     }
+
+    loadAppointments()
   }, [user])
 
-  const cancelAppointment = (id: string) => {
-    if (typeof window !== "undefined") {
-      const savedAppointments = localStorage.getItem("appointments")
-      const allAppointments = savedAppointments ? JSON.parse(savedAppointments) : []
-
-      // Filter out the appointment to cancel
-      const updatedAppointments = allAppointments.filter((appointment: any) => appointment.id !== id)
-      localStorage.setItem("appointments", JSON.stringify(updatedAppointments))
+  const cancelAppointment = async (id: string) => {
+    try {
+      await deleteAppointment(id)
 
       // Update the state
       setAppointments(appointments.filter((appointment) => appointment.id !== id))
@@ -59,6 +66,13 @@ export default function MyAppointments() {
       toast({
         title: "Cita Cancelada",
         description: "Su cita ha sido cancelada exitosamente.",
+      })
+    } catch (error) {
+      console.error("Error al cancelar cita:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la cita. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
       })
     }
   }
@@ -75,6 +89,16 @@ export default function MyAppointments() {
             </div>
           </CardContent>
         </Card>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
       </div>
     )
   }
@@ -97,14 +121,23 @@ export default function MyAppointments() {
       ) : (
         <div className="space-y-4">
           {appointments.map((appointment) => {
-            const specialty = getSpecialtyById(appointment.specialtyId)
-            const doctor = appointment.doctorId ? getDoctorById(appointment.doctorId) : null
-            const timeSlot = getTimeSlotById(appointment.timeSlotId)
+            const specialty = getSpecialtyById(appointment.specialty_id)
+            const doctor = appointment.doctor_id ? getDoctorById(appointment.doctor_id) : null
+            const timeSlot = getTimeSlotById(appointment.time_slot_id)
+            const packageData = appointment.package_id ? getPackageById(appointment.package_id) : null
 
             return (
               <Card key={appointment.id} className="overflow-hidden">
                 <CardHeader className="bg-blue-50 pb-2">
-                  <CardTitle className="text-lg">Cita de {specialty?.name}</CardTitle>
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg">Cita de {specialty?.name}</CardTitle>
+                    {packageData && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Package className="h-3 w-3" />
+                        {packageData.title}
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -121,7 +154,7 @@ export default function MyAppointments() {
                     <div className="space-y-2">
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-2 text-blue-500" />
-                        <span>{appointment.patientName}</span>
+                        <span>{appointment.patient_name}</span>
                       </div>
                       <div className="flex items-center">
                         <Stethoscope className="h-4 w-4 mr-2 text-blue-500" />
@@ -129,6 +162,12 @@ export default function MyAppointments() {
                       </div>
                     </div>
                   </div>
+                  {packageData && (
+                    <div className="mt-3 pt-3 border-t text-sm text-gray-600">
+                      <p>{packageData.description}</p>
+                      {packageData.price && <p className="mt-1 font-medium">Precio: ${packageData.price.toFixed(2)}</p>}
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter className="border-t bg-gray-50 flex justify-end">
                   <AlertDialog>

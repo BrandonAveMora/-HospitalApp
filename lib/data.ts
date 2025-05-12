@@ -153,7 +153,14 @@ export const medicalPackages: MedicalPackage[] = [
 
 // Helper functions
 export function getDoctorsBySpecialty(specialtyId: string): Doctor[] {
-  return doctors.filter((doctor) => doctor.specialtyId === specialtyId)
+  if (!specialtyId) {
+    console.warn("No specialty ID provided to getDoctorsBySpecialty")
+    return []
+  }
+
+  const filteredDoctors = doctors.filter((doctor) => doctor.specialtyId === specialtyId)
+  console.log(`Doctors for specialty ${specialtyId}:`, filteredDoctors)
+  return filteredDoctors
 }
 
 export function getSpecialtyById(id: string): Specialty | undefined {

@@ -27,12 +27,12 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      const success = await login(formData.email, formData.password)
+      const { success, error } = await login(formData.email, formData.password)
 
       if (!success) {
         toast({
           title: "Error de Inicio de Sesión",
-          description: "Correo electrónico o contraseña inválidos. Por favor, inténtelo de nuevo.",
+          description: error || "Correo electrónico o contraseña inválidos. Por favor, inténtelo de nuevo.",
           variant: "destructive",
         })
         setIsLoading(false)
@@ -47,6 +47,7 @@ export default function Login() {
 
       setTimeout(() => {
         router.push("/")
+        router.refresh()
       }, 1000)
     } catch (error) {
       console.error("Login error:", error)
@@ -101,9 +102,6 @@ export default function Login() {
               {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-gray-500">
-            <p>Para probar, cree una cuenta nueva primero</p>
-          </div>
         </CardContent>
         <CardFooter className="flex flex-col">
           <div className="text-center text-sm mt-2">

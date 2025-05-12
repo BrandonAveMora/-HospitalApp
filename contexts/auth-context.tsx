@@ -1,110 +1,116 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-
-type User = {
-  id: string
-  name: string
-  email: string
-}
+import { getSupabaseBrowserClient } from "@/lib/supabase"
+import type { Session, User } from "@supabase/supabase-js"
+import { useRouter } from "next/navigation"
 
 type AuthContextType = {
   user: User | null
+  session: Session | null
   isLoading: boolean
-  login: (email: string, password: string) => Promise<boolean>
-  register: (name: string, email: string, password: string) => Promise<boolean>
-  logout: () => void
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
-    // Verificar si hay un usuario en localStorage al cargar
-    const storedUser = localStorage.getItem("currentUser")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
-    setIsLoading(false)
-  }, [])
+    // Verificar sesión actual
+    const checkSession = async () => {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession()
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulamos una pequeña demora para simular una petición
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Obtener usuarios del localStorage
-    const usersJson = localStorage.getItem("users")
-    const users = usersJson ? JSON.parse(usersJson) : []
-
-    // Buscar usuario por email
-    const foundUser = users.find((u: any) => u.email === email)
-
-    // Verificar si existe y la contraseña coincide
-    if (foundUser && foundUser.password === password) {
-      // Crear objeto de usuario sin la contraseña
-      const loggedUser = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
+      if (error) {
+        console.error("Error al obtener la sesión:", error)
       }
 
-      // Guardar en localStorage y estado
-      localStorage.setItem("currentUser", JSON.stringify(loggedUser))
-      setUser(loggedUser)
-      return true
+      setSession(session)
+      setUser(session?.user || null)
+      setIsLoading(false)
     }
 
-    return false
+    checkSession()
+
+    // Configurar listener para cambios de autenticación
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user || null)
+      setIsLoading(false)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error("Error de inicio de sesión:", error)
+      return { success: false, error: "Error al iniciar sesión" }
+    }
   }
 
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    // Simulamos una pequeña demora para simular una petición
-    await new Promise((resolve) => setTimeout(resolve, 500))
+  const register = async (name: string, email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
+      })
 
-    // Obtener usuarios existentes
-    const usersJson = localStorage.getItem("users")
-    const users = usersJson ? JSON.parse(usersJson) : []
+      if (error) {
+        return { success: false, error: error.message }
+      }
 
-    // Verificar si el email ya está registrado
-    if (users.some((u: any) => u.email === email)) {
-      return false
+      return { success: true }
+    } catch (error) {
+      console.error("Error de registro:", error)
+      return { success: false, error: "Error al registrar usuario" }
     }
-
-    // Crear nuevo usuario
-    const newUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      password, // En una app real, esto debería estar hasheado
-    }
-
-    // Guardar en localStorage
-    const updatedUsers = [...users, newUser]
-    localStorage.setItem("users", JSON.stringify(updatedUsers))
-
-    // Crear objeto de usuario sin la contraseña para el estado
-    const registeredUser = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-    }
-
-    // Guardar en localStorage y estado
-    localStorage.setItem("currentUser", JSON.stringify(registeredUser))
-    setUser(registeredUser)
-
-    return true
   }
 
-  const logout = () => {
-    localStorage.removeItem("currentUser")
-    setUser(null)
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut()
+      router.push("/")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    }
   }
 
-  return <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, session, isLoading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

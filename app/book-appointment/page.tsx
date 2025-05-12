@@ -6,15 +6,17 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Calendar } from "@/components/ui/calendar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { specialties, doctors, timeSlots, getDoctorsBySpecialty, getPackageById } from "@/lib/data"
-import { generateId } from "@/lib/utils"
+import { specialties, doctors, timeSlots, getDoctorsBySpecialty, getPackageById, medicalPackages } from "@/lib/data"
+import { createAppointment } from "@/lib/appointment-service"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import { Badge } from "@/components/ui/badge"
+import { Package } from "lucide-react"
 
 export default function BookAppointment() {
   const router = useRouter()
@@ -24,50 +26,46 @@ export default function BookAppointment() {
 
   const [formData, setFormData] = useState({
     patientName: "",
-    patientId: "",
     specialtyId: "",
     doctorId: "",
     date: new Date(),
     timeSlotId: "",
+    packageId: "",
   })
 
   const [availableDoctors, setAvailableDoctors] = useState(doctors)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [appointments, setAppointments] = useState<any[]>([])
+  const [selectedPackage, setSelectedPackage] = useState<any>(null)
 
-  // Load appointments from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedAppointments = localStorage.getItem("appointments")
-      setAppointments(savedAppointments ? JSON.parse(savedAppointments) : [])
-    }
-  }, [])
-
-  // Pre-fill form if package is selected
+  // Pre-fill form if package is selected from URL
   useEffect(() => {
     if (packageId) {
-      const selectedPackage = getPackageById(packageId)
-      if (selectedPackage) {
+      const pkgData = getPackageById(packageId)
+      if (pkgData) {
+        console.log("Package selected from URL:", pkgData)
+        setSelectedPackage(pkgData)
         setFormData((prev) => ({
           ...prev,
-          specialtyId: selectedPackage.specialtyId,
+          specialtyId: pkgData.specialtyId,
+          packageId: packageId,
         }))
 
         // Update available doctors based on specialty
-        setAvailableDoctors(getDoctorsBySpecialty(selectedPackage.specialtyId))
+        setAvailableDoctors(getDoctorsBySpecialty(pkgData.specialtyId))
       }
     }
 
     // Pre-fill patient name if user is logged in
-    if (user?.name) {
+    if (user?.user_metadata?.name) {
       setFormData((prev) => ({
         ...prev,
-        patientName: user.name,
+        patientName: user.user_metadata.name,
       }))
     }
   }, [packageId, user])
 
   const handleSpecialtyChange = (value: string) => {
+    console.log("Specialty changed to:", value)
     setFormData((prev) => ({
       ...prev,
       specialtyId: value,
@@ -75,15 +73,49 @@ export default function BookAppointment() {
     }))
 
     // Update available doctors based on specialty
-    setAvailableDoctors(getDoctorsBySpecialty(value))
+    const filteredDoctors = getDoctorsBySpecialty(value)
+    console.log("Available doctors:", filteredDoctors)
+    setAvailableDoctors(filteredDoctors)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePackageChange = (value: string) => {
+    console.log("Package changed to:", value)
+
+    if (value === "none") {
+      console.log("Clearing package selection")
+      setSelectedPackage(null)
+      setFormData((prev) => ({
+        ...prev,
+        packageId: "",
+      }))
+      return
+    }
+
+    const pkgData = getPackageById(value)
+    if (pkgData) {
+      console.log("Package data:", pkgData)
+      setSelectedPackage(pkgData)
+
+      // Update both packageId and specialtyId
+      setFormData((prev) => ({
+        ...prev,
+        packageId: value,
+        specialtyId: pkgData.specialtyId,
+      }))
+
+      // Update available doctors based on specialty
+      const filteredDoctors = getDoctorsBySpecialty(pkgData.specialtyId)
+      console.log("Available doctors for package:", filteredDoctors)
+      setAvailableDoctors(filteredDoctors)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     // Validate form
-    if (!formData.patientName || !formData.patientId || !formData.specialtyId || !formData.timeSlotId) {
+    if (!formData.patientName || !formData.specialtyId || !formData.timeSlotId) {
       toast({
         title: "Error",
         description: "Por favor, complete todos los campos requeridos",
@@ -93,34 +125,55 @@ export default function BookAppointment() {
       return
     }
 
-    // Create new appointment
-    const newAppointment = {
-      id: generateId(),
-      userId: user?.id || "guest",
-      patientName: formData.patientName,
-      patientId: formData.patientId,
-      specialtyId: formData.specialtyId,
-      doctorId: formData.doctorId || undefined,
-      date: formData.date.toISOString().split("T")[0],
-      timeSlotId: formData.timeSlotId,
-      packageId: packageId || undefined,
+    try {
+      console.log("Submitting appointment with data:", {
+        user_id: user?.id,
+        patient_name: formData.patientName,
+        patient_id: user?.id,
+        specialty_id: formData.specialtyId,
+        doctor_id: formData.doctorId || undefined,
+        date: formData.date.toISOString().split("T")[0],
+        time_slot_id: formData.timeSlotId,
+        package_id: formData.packageId || undefined,
+      })
+
+      // Create new appointment in Supabase
+      await createAppointment({
+        user_id: user?.id || "",
+        patient_name: formData.patientName,
+        patient_id: user?.id || "", // Usar el ID del usuario como ID del paciente
+        specialty_id: formData.specialtyId,
+        doctor_id: formData.doctorId || undefined,
+        date: formData.date.toISOString().split("T")[0],
+        time_slot_id: formData.timeSlotId,
+        package_id: formData.packageId || undefined,
+      })
+
+      // Show success message
+      toast({
+        title: "Cita Reservada",
+        description: "Su cita ha sido programada exitosamente.",
+      })
+
+      // Redirect to appointments page
+      setTimeout(() => {
+        router.push("/my-appointments")
+      }, 1500)
+    } catch (error) {
+      console.error("Error al crear cita:", error)
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al reservar la cita. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      })
+      setIsSubmitting(false)
     }
-
-    // Save to localStorage
-    const updatedAppointments = [...appointments, newAppointment]
-    localStorage.setItem("appointments", JSON.stringify(updatedAppointments))
-
-    // Show success message
-    toast({
-      title: "Cita Reservada",
-      description: "Su cita ha sido programada exitosamente.",
-    })
-
-    // Redirect to appointments page
-    setTimeout(() => {
-      router.push("/my-appointments")
-    }, 1500)
   }
+
+  // Debug output
+  console.log("Current form data:", formData)
+  console.log("Selected package:", selectedPackage)
+  console.log("Available doctors:", availableDoctors)
 
   if (!user) {
     return (
@@ -145,6 +198,18 @@ export default function BookAppointment() {
       <Card>
         <CardHeader>
           <CardTitle>Detalles de la Cita</CardTitle>
+          {selectedPackage && (
+            <>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Package className="h-3 w-3" />
+                  Paquete: {selectedPackage.title}
+                </Badge>
+                {selectedPackage.price && <Badge variant="outline">Precio: ${selectedPackage.price.toFixed(2)}</Badge>}
+              </div>
+              <CardDescription className="mt-2">{selectedPackage.description}</CardDescription>
+            </>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -161,19 +226,34 @@ export default function BookAppointment() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="patientId">Número de Identificación</Label>
-                <Input
-                  id="patientId"
-                  placeholder="Ingrese su número de identificación"
-                  value={formData.patientId}
-                  onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
-                  required
-                />
+                <Label htmlFor="package">Paquete Médico (Opcional)</Label>
+                <Select
+                  value={formData.packageId || "none"}
+                  onValueChange={handlePackageChange}
+                  disabled={!!packageId} // Deshabilitar si viene de la página de paquetes
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un paquete" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Ninguno</SelectItem>
+                    {medicalPackages.map((pkg) => (
+                      <SelectItem key={pkg.id} value={pkg.id}>
+                        {pkg.title} {pkg.price ? `- $${pkg.price.toFixed(2)}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="specialty">Especialidad</Label>
-                <Select value={formData.specialtyId} onValueChange={handleSpecialtyChange} required>
+                <Select
+                  value={formData.specialtyId}
+                  onValueChange={handleSpecialtyChange}
+                  required
+                  disabled={!!selectedPackage} // Deshabilitar si hay un paquete seleccionado
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione una especialidad" />
                   </SelectTrigger>
@@ -185,12 +265,17 @@ export default function BookAppointment() {
                     ))}
                   </SelectContent>
                 </Select>
+                {formData.specialtyId && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Especialidad seleccionada: {specialties.find((s) => s.id === formData.specialtyId)?.name}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="doctor">Médico (Opcional)</Label>
                 <Select
-                  value={formData.doctorId}
+                  value={formData.doctorId || ""}
                   onValueChange={(value) => setFormData({ ...formData, doctorId: value })}
                   disabled={!formData.specialtyId}
                 >
@@ -198,13 +283,24 @@ export default function BookAppointment() {
                     <SelectValue placeholder="Seleccione un médico" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableDoctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.id}>
-                        {doctor.name}
+                    {availableDoctors.length > 0 ? (
+                      availableDoctors.map((doctor) => (
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          {doctor.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-doctors" disabled>
+                        No hay médicos disponibles
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
+                {formData.doctorId && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Médico seleccionado: {doctors.find((d) => d.id === formData.doctorId)?.name}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -244,6 +340,14 @@ export default function BookAppointment() {
                 </div>
               </div>
             </div>
+
+            {/* Debug info - solo visible durante desarrollo */}
+            {process.env.NODE_ENV === "development" && (
+              <div className="p-4 bg-gray-100 rounded-md text-xs">
+                <p>Debug - Form Data:</p>
+                <pre>{JSON.stringify(formData, null, 2)}</pre>
+              </div>
+            )}
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Reservando..." : "Confirmar Cita"}
