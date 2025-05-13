@@ -64,13 +64,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
       if (error) {
+        // Mensajes de error más específicos
+        if (error.message.includes("Invalid login credentials")) {
+          return {
+            success: false,
+            error: "Correo electrónico o contraseña incorrectos. Por favor, verifique sus datos.",
+          }
+        } else if (error.message.includes("Email not confirmed")) {
+          return { success: false, error: "Por favor, confirme su correo electrónico antes de iniciar sesión." }
+        }
         return { success: false, error: error.message }
       }
 
       return { success: true }
     } catch (error) {
       console.error("Error de inicio de sesión:", error)
-      return { success: false, error: "Error al iniciar sesión" }
+      return { success: false, error: "Error al iniciar sesión. Por favor, inténtelo de nuevo más tarde." }
     }
   }
 
@@ -87,13 +96,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
       if (error) {
+        // Mensajes de error más específicos
+        if (error.message.includes("already registered")) {
+          return {
+            success: false,
+            error:
+              "Este correo electrónico ya está registrado. Por favor, utilice otro o intente recuperar su contraseña.",
+          }
+        } else if (error.message.includes("password")) {
+          return { success: false, error: "La contraseña debe tener al menos 6 caracteres." }
+        }
         return { success: false, error: error.message }
       }
 
       return { success: true }
     } catch (error) {
       console.error("Error de registro:", error)
-      return { success: false, error: "Error al registrar usuario" }
+      return { success: false, error: "Error al registrar usuario. Por favor, inténtelo de nuevo más tarde." }
     }
   }
 
@@ -101,6 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await supabase.auth.signOut()
       router.push("/")
+      // Forzar recarga para actualizar el estado
+      window.location.href = "/"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }

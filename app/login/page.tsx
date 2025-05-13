@@ -12,11 +12,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import { AlertCircle } from "lucide-react"
 
 export default function Login() {
   const router = useRouter()
   const { login } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -25,11 +27,13 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
       const { success, error } = await login(formData.email, formData.password)
 
       if (!success) {
+        setError(error || "Correo electrónico o contraseña inválidos. Por favor, inténtelo de nuevo.")
         toast({
           title: "Error de Inicio de Sesión",
           description: error || "Correo electrónico o contraseña inválidos. Por favor, inténtelo de nuevo.",
@@ -45,12 +49,13 @@ export default function Login() {
         description: "Ha iniciado sesión correctamente.",
       })
 
+      // Redirección y recarga para actualizar el estado
       setTimeout(() => {
-        router.push("/")
-        router.refresh()
+        window.location.href = "/"
       }, 1000)
     } catch (error) {
       console.error("Login error:", error)
+      setError("Ocurrió un error durante el inicio de sesión. Por favor, inténtelo de nuevo.")
       toast({
         title: "Error de Inicio de Sesión",
         description: "Ocurrió un error durante el inicio de sesión. Por favor, inténtelo de nuevo.",
@@ -70,6 +75,12 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-4 flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Correo Electrónico</Label>
