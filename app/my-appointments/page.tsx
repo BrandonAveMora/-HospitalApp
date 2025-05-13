@@ -30,6 +30,7 @@ export default function MyAppointments() {
   const [appointments, setAppointments] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
+  const [isCancelling, setIsCancelling] = useState(false)
 
   useEffect(() => {
     async function loadAppointments() {
@@ -57,6 +58,7 @@ export default function MyAppointments() {
 
   const cancelAppointment = async (id: string) => {
     try {
+      setIsCancelling(true)
       await deleteAppointment(id)
 
       // Update the state
@@ -74,6 +76,8 @@ export default function MyAppointments() {
         description: "No se pudo cancelar la cita. Por favor, inténtelo de nuevo.",
         variant: "destructive",
       })
+    } finally {
+      setIsCancelling(false)
     }
   }
 
@@ -170,7 +174,10 @@ export default function MyAppointments() {
                   )}
                 </CardContent>
                 <CardFooter className="border-t bg-gray-50 flex justify-end">
-                  <AlertDialog>
+                  <AlertDialog
+                    open={appointmentToCancel === appointment.id}
+                    onOpenChange={(open) => !open && setAppointmentToCancel(null)}
+                  >
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive" size="sm" onClick={() => setAppointmentToCancel(appointment.id)}>
                         <X className="h-4 w-4 mr-1" /> Cancelar Cita
@@ -184,9 +191,13 @@ export default function MyAppointments() {
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Mantener Cita</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => cancelAppointment(appointment.id)}>
-                          Sí, Cancelar
+                        <AlertDialogCancel disabled={isCancelling}>Mantener Cita</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => cancelAppointment(appointment.id)}
+                          disabled={isCancelling}
+                          className="bg-red-500 hover:bg-red-600"
+                        >
+                          {isCancelling ? "Cancelando..." : "Sí, Cancelar"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

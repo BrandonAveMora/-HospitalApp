@@ -12,11 +12,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import { AlertCircle } from "lucide-react"
 
 export default function Register() {
   const router = useRouter()
   const { register } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,12 +29,26 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
+      setError("Las contraseñas no coinciden. Por favor, asegúrese de que sus contraseñas coincidan.")
       toast({
         title: "Las contraseñas no coinciden",
         description: "Por favor, asegúrese de que sus contraseñas coincidan.",
+        variant: "destructive",
+      })
+      setIsLoading(false)
+      return
+    }
+
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres.")
+      toast({
+        title: "Contraseña demasiado corta",
+        description: "La contraseña debe tener al menos 6 caracteres.",
         variant: "destructive",
       })
       setIsLoading(false)
@@ -43,6 +59,7 @@ export default function Register() {
       const { success, error } = await register(formData.name, formData.email, formData.password)
 
       if (!success) {
+        setError(error || "Este correo electrónico ya está registrado. Por favor, use otro.")
         toast({
           title: "Error de Registro",
           description: error || "Este correo electrónico ya está registrado. Por favor, use otro.",
@@ -59,11 +76,11 @@ export default function Register() {
       })
 
       setTimeout(() => {
-        router.push("/")
-        router.refresh()
+        window.location.href = "/"
       }, 1000)
     } catch (error) {
       console.error("Registration error:", error)
+      setError("Ocurrió un error durante el registro. Por favor, inténtelo de nuevo.")
       toast({
         title: "Error de Registro",
         description: "Ocurrió un error durante el registro. Por favor, inténtelo de nuevo.",
@@ -81,6 +98,12 @@ export default function Register() {
           <CardDescription className="text-center">Ingrese su información para crear una cuenta</CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-4 flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre Completo</Label>
@@ -113,6 +136,7 @@ export default function Register() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
               />
+              <p className="text-xs text-gray-500">La contraseña debe tener al menos 6 caracteres</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
