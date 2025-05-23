@@ -1,7 +1,8 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { medicalPackages, getSpecialtyById } from "@/lib/data"
 
 export default function MedicalPackages() {
@@ -19,18 +20,24 @@ export default function MedicalPackages() {
 
           return (
             <Card key={pkg.id} className="overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
-              <div className="relative h-48 w-full">
-                <Image src={pkg.image || "/placeholder.svg"} alt={pkg.title} fill style={{ objectFit: "cover" }} />
+              <div className="relative h-48 w-full overflow-hidden">
+                <Image
+                  src={pkg.image || "/placeholder.svg"}
+                  alt={pkg.title}
+                  fill
+                  style={{ objectFit: "cover" }}
+                  className="transition-transform duration-300 hover:scale-105"
+                />
+                {pkg.price && <Badge className="absolute top-2 right-2 bg-blue-500">${pkg.price.toFixed(2)}</Badge>}
               </div>
               <CardHeader className="pb-2">
                 <CardTitle>{pkg.title}</CardTitle>
-                <div className="text-sm text-blue-600">{specialty?.name}</div>
+                <CardDescription className="text-blue-600">{specialty?.name}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-gray-600">{pkg.description}</p>
-                {pkg.price && <p className="mt-4 text-lg font-semibold">${pkg.price.toFixed(2)}</p>}
               </CardContent>
-              <CardFooter>
+              <CardFooter className="border-t pt-4">
                 <Link href={`/book-appointment?package=${pkg.id}`} className="w-full">
                   <Button className="w-full">Reservar este Paquete</Button>
                 </Link>

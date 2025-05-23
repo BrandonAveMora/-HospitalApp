@@ -1,80 +1,124 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
 import type { Session, User } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
 
+export type UserRole = "patient" | "doctor" | "receptionist"
+
+export interface AppUser extends User {
+  role: UserRole
+  profile?: {
+    name: string
+    phone?: string
+    address?: string
+    specialtyId?: string // Solo para doctores
+    doctorId?: string // ID del doctor en la tabla de doctores
+  }
+}
+
 type AuthContextType = {
-  user: User | null
+  user: AppUser | null
   session: Session | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role?: UserRole,
+  ) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Datos simulados de usuarios mejorados
+const simulatedUsers: Record<string, AppUser> = {
+  "patient@hospital.com": {
+    id: "patient-1",
+    email: "patient@hospital.com",
+    role: "patient",
+    profile: {
+      name: "Juan Pérez",
+      phone: "+1234567890",
+      address: "Calle Principal 123, Ciudad",
+    },
+    user_metadata: { name: "Juan Pérez" },
+  } as AppUser,
+  "doctor@hospital.com": {
+    id: "doctor-1",
+    email: "doctor@hospital.com",
+    role: "doctor",
+    profile: {
+      name: "Dr. María González",
+      specialtyId: "cardio",
+      doctorId: "dr-johnson", // Mapeo al ID en la tabla de doctores
+    },
+    user_metadata: { name: "Dr. María González" },
+  } as AppUser,
+  "receptionist@hospital.com": {
+    id: "receptionist-1",
+    email: "receptionist@hospital.com",
+    role: "receptionist",
+    profile: {
+      name: "Ana Martínez",
+    },
+    user_metadata: { name: "Ana Martínez" },
+  } as AppUser,
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AppUser | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
-  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
-    // Verificar sesión actual
-    const checkSession = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
-
-      if (error) {
-        console.error("Error al obtener la sesión:", error)
+    // Verificar si hay un usuario guardado en localStorage
+    const checkSavedUser = () => {
+      const savedUser = localStorage.getItem("currentUser")
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser)
+          setUser(userData)
+          setSession({ user: userData } as Session)
+        } catch (error) {
+          console.error("Error parsing saved user:", error)
+          localStorage.removeItem("currentUser")
+        }
       }
-
-      setSession(session)
-      setUser(session?.user || null)
       setIsLoading(false)
     }
 
-    checkSession()
-
-    // Configurar listener para cambios de autenticación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user || null)
-      setIsLoading(false)
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+    // Solo ejecutar una vez al montar el componente
+    checkSavedUser()
+  }, []) // Sin dependencias para que solo se ejecute al montar
 
   const login = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      // Simulación de autenticación
+      const userData = simulatedUsers[email.toLowerCase()]
 
-      if (error) {
-        // Mensajes de error más específicos
-        if (error.message.includes("Invalid login credentials")) {
-          return {
-            success: false,
-            error: "Correo electrónico o contraseña incorrectos. Por favor, verifique sus datos.",
-          }
-        } else if (error.message.includes("Email not confirmed")) {
-          return { success: false, error: "Por favor, confirme su correo electrónico antes de iniciar sesión." }
+      if (!userData) {
+        return {
+          success: false,
+          error:
+            "Usuario no encontrado. Usuarios de prueba: patient@hospital.com, doctor@hospital.com, receptionist@hospital.com",
         }
-        return { success: false, error: error.message }
       }
+
+      // En una implementación real, aquí verificarías la contraseña
+      if (password.length < 6) {
+        return {
+          success: false,
+          error: "Contraseña incorrecta. Use cualquier contraseña de 6+ caracteres para la demo.",
+        }
+      }
+
+      setUser(userData)
+      setSession({ user: userData } as Session)
+      localStorage.setItem("currentUser", JSON.stringify(userData))
 
       return { success: true }
     } catch (error) {
@@ -83,31 +127,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, role: UserRole = "patient") => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-          },
-        },
-      })
-
-      if (error) {
-        // Mensajes de error más específicos
-        if (error.message.includes("already registered")) {
-          return {
-            success: false,
-            error:
-              "Este correo electrónico ya está registrado. Por favor, utilice otro o intente recuperar su contraseña.",
-          }
-        } else if (error.message.includes("password")) {
-          return { success: false, error: "La contraseña debe tener al menos 6 caracteres." }
+      // Verificar si el usuario ya existe
+      if (simulatedUsers[email.toLowerCase()]) {
+        return {
+          success: false,
+          error: "Este correo electrónico ya está registrado.",
         }
-        return { success: false, error: error.message }
       }
+
+      // Crear nuevo usuario
+      const newUser: AppUser = {
+        id: `${role}-${Date.now()}`,
+        email: email.toLowerCase(),
+        role,
+        profile: {
+          name,
+          ...(role === "doctor" && { specialtyId: "gen-med", doctorId: `dr-${Date.now()}` }),
+        },
+        user_metadata: { name },
+      } as AppUser
+
+      // Guardar en la simulación
+      simulatedUsers[email.toLowerCase()] = newUser
+
+      setUser(newUser)
+      setSession({ user: newUser } as Session)
+      localStorage.setItem("currentUser", JSON.stringify(newUser))
 
       return { success: true }
     } catch (error) {
@@ -118,10 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut()
+      setUser(null)
+      setSession(null)
+      localStorage.removeItem("currentUser")
       router.push("/")
-      // Forzar recarga para actualizar el estado
-      window.location.href = "/"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }

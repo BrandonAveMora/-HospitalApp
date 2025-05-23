@@ -1,20 +1,40 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { ArrowRight, Calendar, FileText, Package } from "lucide-react"
+import { ArrowRight, Calendar, FileText, Package, Users, Stethoscope, Phone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
 export default function Home() {
   const { user } = useAuth()
+  const router = useRouter()
   const isAuthenticated = !!user
 
-  // Obtener el nombre del usuario de los metadatos
-  const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "Usuario"
+  useEffect(() => {
+    // Evitar redirecciones innecesarias
+    if (user && !window.location.pathname.includes(`/${user.role}`)) {
+      switch (user.role) {
+        case "doctor":
+          router.push("/doctor/dashboard")
+          break
+        case "receptionist":
+          router.push("/receptionist/dashboard")
+          break
+        case "patient":
+          // Los pacientes pueden quedarse en la página principal
+          break
+      }
+    }
+  }, [user, router])
+
+  // Obtener el nombre del usuario
+  const userName = user?.profile?.name || user?.email?.split("@")[0] || "Usuario"
 
   return (
-    <main className="container mx-auto px-4 py-12 max-w-5xl">
+    <main className="container mx-auto px-4 py-12 max-w-6xl">
       <div className="flex flex-col items-center justify-center text-center mb-12">
         <div className="bg-blue-500 text-white p-6 rounded-full mb-6">
           <svg
@@ -32,25 +52,25 @@ export default function Home() {
           </svg>
         </div>
         <h1 className="text-4xl font-bold mb-4">Hospital Ciudad General</h1>
-        <p className="text-xl text-gray-600 max-w-2xl">
+        <p className="text-xl text-gray-600 max-w-3xl">
           {isAuthenticated
-            ? `¡Bienvenido de nuevo, ${userName}! Reserve citas, administre su agenda y explore nuestros paquetes médicos.`
-            : "Bienvenido a nuestro portal de pacientes. Inicie sesión para reservar citas, administrar su agenda y explorar nuestros paquetes médicos."}
+            ? `¡Bienvenido de nuevo, ${userName}! Acceda a nuestros servicios médicos especializados.`
+            : "Bienvenido a nuestro portal médico. Ofrecemos atención médica de calidad con tecnología avanzada y personal altamente capacitado."}
         </p>
       </div>
 
-      {isAuthenticated ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {isAuthenticated && user?.role === "patient" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6 flex flex-col items-center">
               <div className="bg-blue-100 p-4 rounded-full mb-4">
                 <Calendar className="h-6 w-6 text-blue-500" />
               </div>
-              <h2 className="text-xl font-semibold mb-2">Reservar Cita</h2>
+              <h2 className="text-xl font-semibold mb-2">Agendar Cita</h2>
               <p className="text-gray-600 mb-4 text-center">Programe una nueva cita con nuestros especialistas.</p>
               <Link href="/book-appointment" className="mt-auto">
                 <Button className="w-full">
-                  Reservar Ahora <ArrowRight className="ml-2 h-4 w-4" />
+                  Agendar Ahora <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
@@ -101,14 +121,29 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
-      ) : (
-        <div className="flex flex-col items-center">
+      ) : !isAuthenticated ? (
+        <div className="flex flex-col items-center mb-12">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Proteja su Información de Salud</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Cree una cuenta o inicie sesión para acceder a nuestra gama completa de servicios, incluida la reserva de
-              citas, registros médicos y paquetes de salud personalizados.
+            <h2 className="text-2xl font-semibold mb-4">Acceda a Nuestros Servicios</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto mb-6">
+              Inicie sesión para acceder a nuestros servicios médicos especializados. Tenemos diferentes portales para
+              pacientes, doctores y personal administrativo.
             </p>
+            <div className="bg-blue-50 p-4 rounded-lg mb-6">
+              <h3 className="font-semibold mb-2">Usuarios de Demostración:</h3>
+              <div className="text-sm space-y-1">
+                <p>
+                  <strong>Paciente:</strong> patient@hospital.com
+                </p>
+                <p>
+                  <strong>Doctor:</strong> doctor@hospital.com
+                </p>
+                <p>
+                  <strong>Recepcionista:</strong> receptionist@hospital.com
+                </p>
+                <p className="text-gray-500 mt-2">Contraseña: cualquier texto de 6+ caracteres</p>
+              </div>
+            </div>
           </div>
           <div className="flex gap-4">
             <Link href="/login">
@@ -121,7 +156,66 @@ export default function Home() {
             </Link>
           </div>
         </div>
-      )}
+      ) : null}
+
+      {/* Información institucional */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="bg-blue-100 p-4 rounded-full mb-4 w-16 h-16 mx-auto flex items-center justify-center">
+              <Stethoscope className="h-8 w-8 text-blue-500" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Atención Especializada</h3>
+            <p className="text-gray-600">
+              Contamos con especialistas en todas las áreas médicas para brindarle la mejor atención.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="bg-green-100 p-4 rounded-full mb-4 w-16 h-16 mx-auto flex items-center justify-center">
+              <Users className="h-8 w-8 text-green-500" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Personal Calificado</h3>
+            <p className="text-gray-600">
+              Nuestro equipo médico está altamente capacitado y comprometido con su bienestar.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="bg-purple-100 p-4 rounded-full mb-4 w-16 h-16 mx-auto flex items-center justify-center">
+              <Phone className="h-8 w-8 text-purple-500" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Atención 24/7</h3>
+            <p className="text-gray-600">
+              Estamos disponibles las 24 horas del día para atender sus emergencias médicas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Información de contacto */}
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold mb-4">¿Necesita Ayuda?</h2>
+        <p className="text-gray-600 mb-6">
+          Nuestro equipo está disponible para asistirle con cualquier consulta o emergencia.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link href="/contact">
+            <Button variant="outline">
+              <Phone className="h-4 w-4 mr-2" />
+              Información de Contacto
+            </Button>
+          </Link>
+          <Button>
+            <Calendar className="h-4 w-4 mr-2" />
+            Emergencias: (555) 123-4567
+          </Button>
+        </div>
+      </div>
     </main>
   )
 }

@@ -34,35 +34,62 @@ export default function MyAppointments() {
 
   useEffect(() => {
     async function loadAppointments() {
-      if (user?.id) {
-        try {
-          const userAppointments = await getUserAppointments(user.id)
-          setAppointments(userAppointments)
-        } catch (error) {
-          console.error("Error al cargar citas:", error)
-          toast({
-            title: "Error",
-            description: "No se pudieron cargar sus citas. Por favor, inténtelo de nuevo.",
-            variant: "destructive",
-          })
-        } finally {
-          setIsLoading(false)
+      if (!user?.id) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        console.log("Loading appointments for user:", user.id)
+
+        const userAppointments = await getUserAppointments(user.id)
+        console.log("Loaded appointments:", userAppointments)
+
+        setAppointments(userAppointments)
+      } catch (error) {
+        console.error("Error loading appointments:", error)
+
+        let errorMessage = "No se pudieron cargar sus citas. Por favor, inténtelo de nuevo."
+        if (error instanceof Error) {
+          errorMessage = error.message
         }
-      } else {
+
+        toast({
+          title: "Error al Cargar Citas",
+          description: errorMessage,
+          variant: "destructive",
+        })
+
+        // En caso de error, mostrar array vacío en lugar de fallar completamente
+        setAppointments([])
+      } finally {
         setIsLoading(false)
       }
     }
 
     loadAppointments()
-  }, [user])
+  }, [user?.id])
 
   const cancelAppointment = async (id: string) => {
+    if (!id) {
+      toast({
+        title: "Error",
+        description: "ID de cita inválido",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setIsCancelling(true)
+      console.log("Cancelling appointment:", id)
+
       await deleteAppointment(id)
 
-      // Update the state
-      setAppointments(appointments.filter((appointment) => appointment.id !== id))
+      // Update the state only after successful deletion
+      setAppointments((prevAppointments) => prevAppointments.filter((appointment) => appointment.id !== id))
+
       setAppointmentToCancel(null)
 
       toast({
@@ -70,10 +97,16 @@ export default function MyAppointments() {
         description: "Su cita ha sido cancelada exitosamente.",
       })
     } catch (error) {
-      console.error("Error al cancelar cita:", error)
+      console.error("Error cancelling appointment:", error)
+
+      let errorMessage = "No se pudo cancelar la cita. Por favor, inténtelo de nuevo."
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+
       toast({
-        title: "Error",
-        description: "No se pudo cancelar la cita. Por favor, inténtelo de nuevo.",
+        title: "Error al Cancelar",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

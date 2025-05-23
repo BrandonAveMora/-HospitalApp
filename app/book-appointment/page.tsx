@@ -6,17 +6,21 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Calendar } from "@/components/ui/calendar"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Info } from "lucide-react"
 import { specialties, doctors, timeSlots, getDoctorsBySpecialty, getPackageById, medicalPackages } from "@/lib/data"
 import { createAppointment } from "@/lib/appointment-service"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { Badge } from "@/components/ui/badge"
 import { Package } from "lucide-react"
+import { addDays, isBefore, format } from "date-fns"
+import { es } from "date-fns/locale"
 
 export default function BookAppointment() {
   const router = useRouter()
@@ -36,6 +40,17 @@ export default function BookAppointment() {
   const [availableDoctors, setAvailableDoctors] = useState(doctors)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedPackage, setSelectedPackage] = useState<any>(null)
+  const [validationErrors, setValidationErrors] = useState<{
+    date?: string
+    time?: string
+  }>({})
+
+  // Calcular fechas mínimas para validación
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Fecha mínima para citas (2 días a partir de hoy)
+  const minDate = addDays(today, 2)
 
   // Pre-fill form if package is selected from URL
   useEffect(() => {
@@ -44,28 +59,42 @@ export default function BookAppointment() {
       if (pkgData) {
         console.log("Package selected from URL:", pkgData)
         setSelectedPackage(pkgData)
+
+        // Actualizar formData solo una vez, no en cada renderizado
         setFormData((prev) => ({
           ...prev,
           specialtyId: pkgData.specialtyId,
           packageId: packageId,
+          date: minDate, // Establecer fecha mínima por defecto
         }))
 
-        // Update available doctors based on specialty
-        setAvailableDoctors(getDoctorsBySpecialty(pkgData.specialtyId))
+        // Update available doctors based on specialty - solo una vez
+        const filteredDoctors = getDoctorsBySpecialty(pkgData.specialtyId)
+        setAvailableDoctors(filteredDoctors)
       }
+    } else {
+      // Si no hay paquete seleccionado, establecer fecha mínima por defecto
+      setFormData((prev) => ({
+        ...prev,
+        date: minDate,
+      }))
     }
 
     // Pre-fill patient name if user is logged in
-    if (user?.user_metadata?.name) {
+    if (user?.profile?.name) {
       setFormData((prev) => ({
         ...prev,
-        patientName: user.user_metadata.name,
+        patientName: user.profile.name,
       }))
     }
-  }, [packageId, user])
+  }, [packageId, user?.profile?.name]) // Dependencias específicas
 
   const handleSpecialtyChange = (value: string) => {
     console.log("Specialty changed to:", value)
+
+    // Evitar actualizar si es el mismo valor
+    if (value === formData.specialtyId) return
+
     setFormData((prev) => ({
       ...prev,
       specialtyId: value,
@@ -81,12 +110,16 @@ export default function BookAppointment() {
   const handlePackageChange = (value: string) => {
     console.log("Package changed to:", value)
 
+    // Evitar actualizar si es el mismo valor
+    if (value === formData.packageId) return
+
     if (value === "none") {
       console.log("Clearing package selection")
       setSelectedPackage(null)
       setFormData((prev) => ({
         ...prev,
         packageId: "",
+        // No cambiar la especialidad cuando se deselecciona el paquete
       }))
       return
     }
@@ -101,6 +134,7 @@ export default function BookAppointment() {
         ...prev,
         packageId: value,
         specialtyId: pkgData.specialtyId,
+        doctorId: "", // Reset doctor when package changes
       }))
 
       // Update available doctors based on specialty
@@ -110,8 +144,74 @@ export default function BookAppointment() {
     }
   }
 
+  const handleDateChange = (date: Date | undefined) => {
+    if (!date) return
+
+    // Validar que la fecha no sea anterior a la fecha mínima
+    if (isBefore(date, minDate)) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        date: `Las citas deben programarse con al menos 2 días de anticipación. La fecha más cercana disponible es ${format(minDate, "PPP", { locale: es })}.`,
+      }))
+    } else {
+      // Limpiar error si la fecha es válida
+      setValidationErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors.date
+        return newErrors
+      })
+    }
+
+    setFormData({ ...formData, date, timeSlotId: "" }) // Reset time slot when date changes
+  }
+
+  const handleTimeSlotChange = (timeSlotId: string) => {
+    // Aquí podríamos implementar validación adicional para horarios
+    // Por ejemplo, si la fecha es hoy, validar que la hora no haya pasado ya
+
+    setFormData({ ...formData, timeSlotId })
+
+    // Limpiar error de tiempo si existiera
+    setValidationErrors((prev) => {
+      const newErrors = { ...prev }
+      delete newErrors.time
+      return newErrors
+    })
+  }
+
+  const validateForm = () => {
+    const errors: { date?: string; time?: string } = {}
+    let isValid = true
+
+    // Validar fecha
+    if (isBefore(formData.date, minDate)) {
+      errors.date = `Las citas deben programarse con al menos 2 días de anticipación. La fecha más cercana disponible es ${format(minDate, "PPP", { locale: es })}.`
+      isValid = false
+    }
+
+    // Validar que se haya seleccionado un horario
+    if (!formData.timeSlotId) {
+      errors.time = "Por favor, seleccione un horario para su cita."
+      isValid = false
+    }
+
+    setValidationErrors(errors)
+    return isValid
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validar el formulario antes de enviar
+    if (!validateForm()) {
+      toast({
+        title: "Error de Validación",
+        description: "Por favor, corrija los errores en el formulario antes de continuar.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     // Validate form
@@ -126,46 +226,75 @@ export default function BookAppointment() {
     }
 
     try {
-      console.log("Submitting appointment with data:", {
-        user_id: user?.id,
-        patient_name: formData.patientName,
-        patient_id: user?.id,
-        specialty_id: formData.specialtyId,
-        doctor_id: formData.doctorId || undefined,
-        date: formData.date.toISOString().split("T")[0],
-        time_slot_id: formData.timeSlotId,
-        package_id: formData.packageId || undefined,
-      })
-
-      // Create new appointment in Supabase
-      await createAppointment({
+      const appointmentData = {
         user_id: user?.id || "",
         patient_name: formData.patientName,
-        patient_id: user?.id || "", // Usar el ID del usuario como ID del paciente
+        patient_id: user?.id || "",
         specialty_id: formData.specialtyId,
-        doctor_id: formData.doctorId || undefined,
+        doctor_id: formData.doctorId || null,
         date: formData.date.toISOString().split("T")[0],
         time_slot_id: formData.timeSlotId,
-        package_id: formData.packageId || undefined,
-      })
+        package_id: formData.packageId || null,
+      }
+
+      console.log("Submitting appointment with data:", appointmentData)
+
+      // Validar que todos los campos requeridos estén presentes
+      if (!appointmentData.user_id) {
+        throw new Error("ID de usuario requerido")
+      }
+      if (!appointmentData.patient_name) {
+        throw new Error("Nombre del paciente requerido")
+      }
+      if (!appointmentData.specialty_id) {
+        throw new Error("Especialidad requerida")
+      }
+      if (!appointmentData.date) {
+        throw new Error("Fecha requerida")
+      }
+      if (!appointmentData.time_slot_id) {
+        throw new Error("Horario requerido")
+      }
+
+      // Create new appointment
+      const result = await createAppointment(appointmentData)
+      console.log("Appointment created successfully:", result)
 
       // Show success message
       toast({
-        title: "Cita Reservada",
-        description: "Su cita ha sido programada exitosamente.",
+        title: "¡Cita Reservada Exitosamente!",
+        description: `Su cita ha sido programada para el ${format(formData.date, "PPP", { locale: es })} a las ${timeSlots.find((slot) => slot.id === formData.timeSlotId)?.time}.`,
       })
 
-      // Redirect to appointments page
+      // Reset form
+      setFormData({
+        patientName: user?.profile?.name || "",
+        specialtyId: "",
+        doctorId: "",
+        date: minDate,
+        timeSlotId: "",
+        packageId: "",
+      })
+
+      // Redirect to appointments page after a delay
       setTimeout(() => {
         router.push("/my-appointments")
-      }, 1500)
+      }, 2000)
     } catch (error) {
       console.error("Error al crear cita:", error)
+
+      let errorMessage = "Ocurrió un error al reservar la cita. Por favor, inténtelo de nuevo."
+
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+
       toast({
-        title: "Error",
-        description: "Ocurrió un error al reservar la cita. Por favor, inténtelo de nuevo.",
+        title: "Error al Reservar Cita",
+        description: errorMessage,
         variant: "destructive",
       })
+
       setIsSubmitting(false)
     }
   }
@@ -175,6 +304,7 @@ export default function BookAppointment() {
   console.log("Selected package:", selectedPackage)
   console.log("Available doctors:", availableDoctors)
 
+  // Verificar autenticación antes de renderizar el formulario
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -212,6 +342,15 @@ export default function BookAppointment() {
           )}
         </CardHeader>
         <CardContent>
+          <Alert className="mb-6 bg-blue-50 text-blue-800 border-blue-200">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Información importante</AlertTitle>
+            <AlertDescription>
+              Las citas deben programarse con al menos 2 días de anticipación para garantizar la disponibilidad del
+              personal médico.
+            </AlertDescription>
+          </Alert>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -311,16 +450,24 @@ export default function BookAppointment() {
                   <Calendar
                     mode="single"
                     selected={formData.date}
-                    onSelect={(date) => date && setFormData({ ...formData, date })}
-                    disabled={
-                      (date) =>
-                        date < new Date(new Date().setHours(0, 0, 0, 0)) || // Disable past dates
-                        date.getDay() === 0 ||
-                        date.getDay() === 6 // Disable weekends
-                    }
+                    onSelect={handleDateChange}
+                    disabled={(date) => {
+                      // Deshabilitar fechas pasadas, fines de semana y fechas antes de la fecha mínima
+                      return (
+                        isBefore(date, today) || // Fechas pasadas
+                        date.getDay() === 0 || // Domingo
+                        date.getDay() === 6 || // Sábado
+                        isBefore(date, minDate) // Fechas antes de la fecha mínima (2 días a partir de hoy)
+                      )
+                    }}
                     className="rounded-md border"
+                    locale={es}
                   />
                 </div>
+                {validationErrors.date && <p className="text-sm text-red-500 mt-1">{validationErrors.date}</p>}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Fecha seleccionada: {format(formData.date, "PPP", { locale: es })}
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -331,27 +478,26 @@ export default function BookAppointment() {
                       key={slot.id}
                       type="button"
                       variant={formData.timeSlotId === slot.id ? "default" : "outline"}
-                      onClick={() => setFormData({ ...formData, timeSlotId: slot.id })}
+                      onClick={() => handleTimeSlotChange(slot.id)}
                       className="justify-start"
                     >
                       {slot.time}
                     </Button>
                   ))}
                 </div>
+                {validationErrors.time && <p className="text-sm text-red-500 mt-1">{validationErrors.time}</p>}
               </div>
             </div>
 
-            {/* Debug info - solo visible durante desarrollo */}
-            {process.env.NODE_ENV === "development" && (
-              <div className="p-4 bg-gray-100 rounded-md text-xs">
-                <p>Debug - Form Data:</p>
-                <pre>{JSON.stringify(formData, null, 2)}</pre>
-              </div>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Reservando..." : "Confirmar Cita"}
-            </Button>
+            <CardFooter className="px-0 pt-6 pb-0 flex justify-end">
+              <Button
+                type="submit"
+                className="w-full md:w-auto"
+                disabled={isSubmitting || Object.keys(validationErrors).length > 0}
+              >
+                {isSubmitting ? "Reservando..." : "Confirmar Cita"}
+              </Button>
+            </CardFooter>
           </form>
         </CardContent>
       </Card>

@@ -115,6 +115,7 @@ export const timeSlots: TimeSlot[] = [
   { id: "4pm", time: "4:00 PM" },
 ]
 
+// Actualizo solo la parte de los paquetes médicos para incluir imágenes más descriptivas
 export const medicalPackages: MedicalPackage[] = [
   {
     id: "basic-checkup",
@@ -122,7 +123,7 @@ export const medicalPackages: MedicalPackage[] = [
     description: "Examen físico completo, análisis de sangre y consulta con un médico general.",
     price: 150,
     specialtyId: "gen-med",
-    image: "/placeholder.svg?height=200&width=300",
+    image: "/placeholder.svg?height=200&width=300&text=Chequeo+Básico",
   },
   {
     id: "heart-health",
@@ -130,7 +131,7 @@ export const medicalPackages: MedicalPackage[] = [
     description: "Evaluación cardíaca completa que incluye ECG, prueba de esfuerzo y consulta con un cardiólogo.",
     price: 350,
     specialtyId: "cardio",
-    image: "/placeholder.svg?height=200&width=300",
+    image: "/placeholder.svg?height=200&width=300&text=Salud+Cardíaca",
   },
   {
     id: "skin-care",
@@ -138,7 +139,7 @@ export const medicalPackages: MedicalPackage[] = [
     description: "Examen completo de la piel, pruebas de alergia y plan personalizado de cuidado de la piel.",
     price: 200,
     specialtyId: "derm",
-    image: "/placeholder.svg?height=200&width=300",
+    image: "/placeholder.svg?height=200&width=300&text=Cuidado+de+la+Piel",
   },
   {
     id: "child-wellness",
@@ -146,7 +147,7 @@ export const medicalPackages: MedicalPackage[] = [
     description: "Chequeo pediátrico completo, vacunas y evaluación del crecimiento.",
     price: 180,
     specialtyId: "ped",
-    image: "/placeholder.svg?height=200&width=300",
+    image: "/placeholder.svg?height=200&width=300&text=Bienestar+Infantil",
   },
   {
     id: "dental-care",
@@ -154,7 +155,7 @@ export const medicalPackages: MedicalPackage[] = [
     description: "Limpieza dental, radiografías y evaluación completa de la salud bucal.",
     price: 220,
     specialtyId: "dent",
-    image: "/placeholder.svg?height=200&width=300",
+    image: "/placeholder.svg?height=200&width=300&text=Cuidado+Dental",
   },
   {
     id: "joint-health",
@@ -162,7 +163,7 @@ export const medicalPackages: MedicalPackage[] = [
     description: "Evaluación de articulaciones, radiografías y consulta con un especialista en ortopedia.",
     price: 280,
     specialtyId: "ortho",
-    image: "/placeholder.svg?height=200&width=300",
+    image: "/placeholder.svg?height=200&width=300&text=Salud+Articular",
   },
 ]
 
